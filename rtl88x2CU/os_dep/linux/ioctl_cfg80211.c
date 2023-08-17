@@ -806,7 +806,7 @@ void rtw_cfg80211_ibss_indicate_connect(_adapter *padapter)
 					RTW_INFO(FUNC_ADPT_FMT" inform success !!\n", FUNC_ADPT_ARG(padapter));
 			} else {
 				RTW_INFO("cur_network is not exist!!!\n");
-				return ;
+				return;
 			}
 		} else {
 			if (scanned == NULL) {
@@ -905,8 +905,10 @@ void rtw_cfg80211_indicate_connect(_adapter *padapter)
 				scanned->network.Ssid.Ssid, MAC_ARG(scanned->network.MacAddress),
 				pnetwork->Ssid.Ssid, MAC_ARG(pnetwork->MacAddress)
 			);
-			if (pnetwork->Ssid.Ssid == NULL)
+			if (pnetwork->Ssid.Ssid == NULL) {
 				rtw_warn_on(1);
+				return;
+			}
 		}
 	}
 
