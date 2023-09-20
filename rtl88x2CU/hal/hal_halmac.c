@@ -3424,6 +3424,8 @@ static int download_fw(struct dvobj_priv *d, u8 *fw, u32 fwsize, u8 re_dl)
 
 	/* 5. Download Firmware */
 	status = api->halmac_download_firmware(mac, fw, fwsize);
+	RTW_INFO("%s before download FW, 0x210=0x%02x, 0x%02x=0x%02x\n", __func__,
+		rtw_read32(dvobj_get_primary_adapter(d), 0x210), REG_AUTO_LLT_V1, rtw_read32(dvobj_get_primary_adapter(d), REG_AUTO_LLT_V1));
 	if (status != HALMAC_RET_SUCCESS) {
 		RTW_ERR("%s: download firmware FAIL! status=0x%02x\n",
 			__FUNCTION__, status);
