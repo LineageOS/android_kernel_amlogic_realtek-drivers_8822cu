@@ -173,6 +173,7 @@ typedef enum _WAKEUP_REASON{
 	RX_DISASSOC						= 0x04,
 	RX_DEAUTH						= 0x08,
 	RX_ARP_REQUEST					= 0x09,
+	RX_EAPREQ_IDENTIFY			= 0x0B,
 	FW_DECISION_DISCONNECT			= 0x10,
 	RX_MAGIC_PKT					= 0x21,
 	RX_UNICAST_PKT					= 0x22,
@@ -314,6 +315,12 @@ void dump_chip_info(HAL_VERSION	ChipVersion);
 #define TBTT_PROHIBIT_HOLD_TIME 0x80 /* 4ms, unit is 32us*/
 #define TBTT_PROHIBIT_HOLD_TIME_STOP_BCN 0x64 /* 3.2ms unit is 32us*/
 
+/*  TBTT hold time for 10M */
+#define TBTT_PROHIBIT_HOLD_TIME_10M 0xc8
+
+/*  TBTT hold time for 5M */
+#define TBTT_PROHIBIT_HOLD_TIME_5M 0x190
+
 int hal_spec_init(_adapter *adapter);
 void dump_hal_spec(void *sel, _adapter *adapter);
 
@@ -328,7 +335,7 @@ u8 hal_largest_bw(_adapter *adapter, u8 in_bw);
 
 bool hal_chk_wl_func(_adapter *adapter, u8 func);
 
-void hal_com_config_channel_plan(
+void hal_com_parse_channel_plan(
 		PADAPTER padapter,
 		const char *hw_alpha2,
 		u8 hw_chplan,
@@ -398,6 +405,7 @@ void rtw_sec_read_cam_ent(_adapter *adapter, u8 id, u8 *ctrl, u8 *mac, u8 *key);
 void rtw_sec_write_cam_ent(_adapter *adapter, u8 id, u16 ctrl, u8 *mac, u8 *key);
 void rtw_sec_clr_cam_ent(_adapter *adapter, u8 id);
 bool rtw_sec_read_cam_is_gk(_adapter *adapter, u8 id);
+u8 rtw_sec_search_camid(_adapter *adapter, u8 key_id, u8 is_gtk);
 
 u8 rtw_hal_rcr_check(_adapter *adapter, u32 check_bit);
 
@@ -575,6 +583,16 @@ void update_IOT_info(_adapter *padapter);
 #ifdef CONFIG_RTS_FULL_BW
 void rtw_set_rts_bw(_adapter *padapter);
 #endif/*CONFIG_RTS_FULL_BW*/
+
+enum ctrl_tx_bcn_reason {
+	CTRL_TX_BCN_BY_OTHERS		= 0,
+	CTRL_TX_BCN_BY_SCAN		= 1,
+	CTRL_TX_BCN_BY_JOIN		= 2,
+	CTRL_TX_BCN_BY_CORRECT_TSF	= 3,
+};
+
+void ResumeTxBeacon_with_reason(_adapter *padapter, enum ctrl_tx_bcn_reason reason);
+void StopTxBeacon_with_reason(_adapter *padapter,enum ctrl_tx_bcn_reason reason);
 
 void ResumeTxBeacon(_adapter *padapter);
 void StopTxBeacon(_adapter *padapter);

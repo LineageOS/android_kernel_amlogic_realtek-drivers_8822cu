@@ -42,7 +42,7 @@
 #endif
 
 #ifdef CONFIG_80211AC_VHT
-	/* #define CONFIG_BEAMFORMING */
+	#define CONFIG_BEAMFORMING
 #endif
 
 /* set CONFIG_IOCTL_CFG80211 from Makefile */
@@ -86,20 +86,20 @@
 #endif /* CONFIG_SUPPORT_USB_INT */
 
 #ifdef CONFIG_POWER_SAVING
-	/* #define CONFIG_IPS	1 */
+	#define CONFIG_IPS	1
 	#ifdef CONFIG_IPS
-	/* #define CONFIG_IPS_LEVEL_2 1*/ /*enable this to set default IPS mode to IPS_LEVEL_2*/
-	#define CONFIG_IPS_CHECK_IN_WD /* Do IPS Check in WatchDog.	*/
-	/* #define CONFIG_FWLPS_IN_IPS */
-	#endif
+		#define CONFIG_IPS_CHECK_IN_WD /* Do IPS Check in WatchDog.	*/
+		/* #define CONFIG_FWLPS_IN_IPS */
+	#endif /* CONFIG_IPS */
 	/* #define SUPPORT_HW_RFOFF_DETECTED	1 */
 
 	#define CONFIG_LPS	1
 	#if defined(CONFIG_LPS)
-		/* #define CONFIG_LPS_LCLK	1 */
+		#define CONFIG_LPS_LCLK	1
 	#endif
 
 	#ifdef CONFIG_LPS_LCLK
+		#define CONFIG_LPS_PG 1
 		#ifdef CONFIG_POWER_SAVING
 			/* #define CONFIG_XMIT_THREAD_MODE */
 		#endif /* CONFIG_POWER_SAVING */

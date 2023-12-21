@@ -104,6 +104,10 @@
 	#ifndef CONFIG_RADIO_WORK
 	#define CONFIG_RADIO_WORK
 	#endif
+	/* Default enable concurrent mode for most application */
+	#ifndef CONFIG_CONCURRENT_MODE
+	#define CONFIG_CONCURRENT_MODE
+	#endif
 	#endif
 
 	#if (CONFIG_RTW_ANDROID <= 7)
@@ -185,11 +189,23 @@
 
 #else // for Linux
 
+	#ifdef CONFIG_IOCTL_CFG80211
 	#ifndef CONFIG_RTW_SCAN_RAND
 	#define CONFIG_RTW_SCAN_RAND
 	#endif
+	#endif
 
 #endif // CONFIG_RTW_ANDROID
+
+#ifndef RTW_SINGLE_WIPHY
+#define RTW_PER_ADAPTER_WIPHY 1
+#else
+#define RTW_PER_ADAPTER_WIPHY 0
+#endif
+
+#if defined(CONFIG_REGD_SRC_FROM_OS) && RTW_PER_ADAPTER_WIPHY
+#error "CONFIG_REGD_SRC_FROM_OS is not supported when enable RTW_PER_ADAPTER_WIPHY"
+#endif
 
 /*
 #if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_RESUME_IN_WORKQUEUE)
@@ -377,11 +393,27 @@
 #endif
 
 #ifndef CONFIG_RTW_EXCL_CHS
-	#define CONFIG_RTW_EXCL_CHS {0}
+#define CONFIG_RTW_EXCL_CHS {0}
 #endif
 
 #ifndef CONFIG_RTW_EXCL_CHS_6G
-	#define CONFIG_RTW_EXCL_CHS_6G {0}
+#define CONFIG_RTW_EXCL_CHS_6G {0}
+#endif
+
+#ifndef CONFIG_RTW_DIS_CH_FLAGS
+#define CONFIG_RTW_DIS_CH_FLAGS NULL
+#endif
+
+#ifndef CONFIG_RTW_BCN_HINT_VALID_MS
+#define CONFIG_RTW_BCN_HINT_VALID_MS (60 * 1000)
+#endif
+
+#ifndef CONFIG_RTW_COUNTRY_IE_SLAVE_EN_MODE
+#define CONFIG_RTW_COUNTRY_IE_SLAVE_EN_MODE 0 /* 0: disable */
+#endif
+
+#ifndef CONFIG_RTW_COUNTRY_IE_SLAVE_FLAGS
+#define CONFIG_RTW_COUNTRY_IE_SLAVE_FLAGS 0x01 /* BIT0: take intersection when having multiple received IEs */
 #endif
 
 #ifndef CONFIG_RTW_COUNTRY_IE_SLAVE_EN_ROLE
@@ -392,10 +424,15 @@
 #define CONFIG_RTW_COUNTRY_IE_SLAVE_EN_IFBMP 0xFF /* all iface */
 #endif
 
+#ifndef CONFIG_RTW_COUNTRY_IE_SLAVE_SCAN_INT_MS
+#define CONFIG_RTW_COUNTRY_IE_SLAVE_SCAN_INT_MS (60 * 1000)
+#endif
+
 #ifndef CONFIG_IEEE80211_BAND_5GHZ
 	#if defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8821C) \
 		|| defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) \
-		|| defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8814B) || defined(CONFIG_RTL8723F)
+		|| defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8814B) || defined(CONFIG_RTL8723F) \
+		|| defined(CONFIG_RTL8822E)
 	#define CONFIG_IEEE80211_BAND_5GHZ 1
 	#else
 	#define CONFIG_IEEE80211_BAND_5GHZ 0
@@ -434,6 +471,18 @@
 #endif
 #ifndef CONFIG_TXPWR_LIMIT_EN
 #define CONFIG_TXPWR_LIMIT_EN 2 /* by efuse */
+#endif
+
+#ifndef CONFIG_RTW_INIT_REGD_ALWAYS_APPLY
+#define CONFIG_RTW_INIT_REGD_ALWAYS_APPLY 0
+#endif
+
+#ifndef CONFIG_RTW_USER_REGD_ALWAYS_APPLY
+#define CONFIG_RTW_USER_REGD_ALWAYS_APPLY 0
+#endif
+
+#ifndef CONFIG_RTW_COUNTRY_CODE
+#define CONFIG_RTW_COUNTRY_CODE NULL
 #endif
 
 #ifndef CONFIG_RTW_CHPLAN
@@ -605,7 +654,7 @@ defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8710B)
 defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8723D)
 #define CONFIG_HWMPCAP_GEN1
 #elif defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C) || \
-defined(CONFIG_RTL8723F) /*|| defined(CONFIG_RTL8814A)*/
+defined(CONFIG_RTL8723F) || defined(CONFIG_RTL8822E) /*|| defined(CONFIG_RTL8814A)*/
 #define CONFIG_HWMPCAP_GEN2
 #elif defined(CONFIG_RTL8814B) /*Address CAM - 128*/
 #define CONFIG_HWMPCAP_GEN3
@@ -703,7 +752,9 @@ defined(CONFIG_RTL8723F) /*|| defined(CONFIG_RTL8814A)*/
 	#endif
 #endif
 
-#if defined(CONFIG_WOWLAN) && (defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B))
+#if defined(CONFIG_WOWLAN) && (defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) \
+	|| defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822C) \
+	|| defined(CONFIG_RTL8814B) || defined(CONFIG_RTL8822E))
 	#define CONFIG_WOW_PATTERN_HW_CAM
 #endif
 
@@ -713,6 +764,10 @@ defined(CONFIG_RTL8723F) /*|| defined(CONFIG_RTL8814A)*/
 
 #ifndef CONFIG_TSF_UPDATE_RESTORE_FACTOR
 #define CONFIG_TSF_UPDATE_RESTORE_FACTOR 5
+#endif
+
+#ifndef CONFIG_RTW_DEFAULT_BB_OPMODE
+#define CONFIG_RTW_DEFAULT_BB_OPMODE 0 /* 0:PHYDM_PERFORMANCE_MODE */
 #endif
 
 /*
@@ -767,14 +822,18 @@ defined(CONFIG_RTL8723F) /*|| defined(CONFIG_RTL8814A)*/
 
 /* IPS */
 #ifndef RTW_IPS_MODE
-	#if defined(CONFIG_IPS)
+	#if defined(CONFIG_FWLPS_IN_IPS) && defined(CONFIG_LPS_LCLK)
+		#define RTW_IPS_MODE 3
+	#elif defined(CONFIG_FWLPS_IN_IPS)
+		#define RTW_IPS_MODE 2
+	#elif defined(CONFIG_IPS)
 		#define RTW_IPS_MODE 1
 	#else
 		#define RTW_IPS_MODE 0
 	#endif
 #endif /* !RTW_IPS_MODE */
 
-#if (RTW_IPS_MODE > 1 || RTW_IPS_MODE < 0)
+#if (RTW_IPS_MODE > 3 || RTW_IPS_MODE < 0)
 	#error "The CONFIG_IPS_MODE value is wrong. Please follow HowTo_enable_the_power_saving_functionality.pdf.\n"
 #endif
 
@@ -801,6 +860,23 @@ defined(CONFIG_RTL8723F) /*|| defined(CONFIG_RTL8814A)*/
 
 #ifndef RTW_WOW_LPS_1T1R
 #define RTW_WOW_LPS_1T1R 0
+#endif
+
+/* WOW IPS */
+#ifndef RTW_WOW_IPS_MODE
+	#if defined(CONFIG_FWLPS_IN_IPS) && defined(CONFIG_LPS_LCLK)
+		#define RTW_WOW_IPS_MODE 3
+	#elif defined(CONFIG_FWLPS_IN_IPS)
+		#define RTW_WOW_IPS_MODE 2
+	#elif defined(CONFIG_IPS)
+		#define RTW_WOW_IPS_MODE 1
+	#else
+		#define RTW_WOW_IPS_MODE 0
+	#endif
+#endif /* !RTW_WOW_IPS_MODE */
+
+#if (RTW_WOW_IPS_MODE > 3 || RTW_WOW_IPS_MODE < 0)
+	#error "The RTW_WOW_IPS_MODE value is wrong. Please follow HowTo_enable_the_power_saving_functionality.pdf.\n"
 #endif
 
 /* WOW LPS */
@@ -867,6 +943,16 @@ defined(CONFIG_RTL8723F) /*|| defined(CONFIG_RTL8814A)*/
 /* Debug related compiler flags */
 #define DBG_THREAD_PID	/* Add thread pid to debug message prefix */
 #define DBG_CPU_INFO	/* Add CPU info to debug message prefix */
+#endif
+
+#ifndef CONFIG_ALLOW_FUNC_2G_5G_ONLY
+#define CONFIG_ALLOW_FUNC_2G_5G_ONLY 1
+#endif
+
+#if !CONFIG_ALLOW_FUNC_2G_5G_ONLY
+#define RTW_FUNC_2G_5G_ONLY __attribute__ ((deprecated("ch utility consider only 2G/5G is not allowed")))
+#else
+#define RTW_FUNC_2G_5G_ONLY /* tag for channel functions/macros consider only 2G/5G, place at the same line with symbol name */
 #endif
 
 #endif /* __DRV_CONF_H__ */

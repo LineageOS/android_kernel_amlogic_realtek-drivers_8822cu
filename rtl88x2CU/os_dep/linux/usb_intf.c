@@ -71,6 +71,7 @@ static void rtw_dev_shutdown(struct device *dev)
 					else
 					#endif
 					{
+
 						RTW_PRINT("stop cmd thread during %s\n", __func__);
 						rtw_set_drv_stopped(adapter);	/*for stop thread*/
 						rtw_stop_drv_threads(adapter);
@@ -266,6 +267,8 @@ static struct usb_device_id rtw_usb_id_tbl[] = {
 	/*=== Realtek demoboard ===*/
 	{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDER_ID_REALTEK, 0xF192, 0xff, 0xff, 0xff), .driver_info = RTL8192F}, /* 8192FU 2*2 */
 	{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDER_ID_REALTEK, 0xA725, 0xff, 0xff, 0xff), .driver_info = RTL8192F}, /* 8725AU 2*2 */
+	/*=== Customer ID ===*/
+	{USB_DEVICE(0x0b05, 0x18f1), .driver_info = RTL8192F}, /* ASUS USB-N13 C1 */
 #endif
 
 #ifdef CONFIG_RTL8821C
@@ -308,6 +311,13 @@ static struct usb_device_id rtw_usb_id_tbl[] = {
 	{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDER_ID_REALTEK, 0xB733, 0xff, 0xff, 0xff), .driver_info = RTL8723F}, /* USB multi-fuction */
 	{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDER_ID_REALTEK, 0xF72B, 0xff, 0xff, 0xff), .driver_info = RTL8723F}, /* USB Single-fuction, WiFi only */
 #endif
+
+#ifdef CONFIG_RTL8822E
+	/*=== Realtek demoboard ===*/
+	{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDER_ID_REALTEK, 0xE822, 0xff, 0xff, 0xff), .driver_info = RTL8822E}, /* Default ID for USB multi-function */
+	{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDER_ID_REALTEK, 0xA82A, 0xff, 0xff, 0xff), .driver_info = RTL8822E}, /* Default ID for USB multi-function */
+#endif /* CONFIG_RTL8822E */
+
 
 	{}	/* Terminating entry */
 };
@@ -516,6 +526,12 @@ static void rtw_decide_chip_type_by_usb_info(struct dvobj_priv *pdvobjpriv, cons
 	if (pdvobjpriv->chip_type == RTL8723F)
 		rtl8723fu_set_hw_type(pdvobjpriv);
 #endif /* CONFIG_RTL8723F */
+
+#ifdef CONFIG_RTL8822E
+	if (pdvobjpriv->chip_type == RTL8822E)
+		rtl8822eu_set_hw_type(pdvobjpriv);
+#endif /* CONFIG_RTL8822E */
+
 }
 
 static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf, const struct usb_device_id *pdid)
@@ -797,6 +813,11 @@ u8 rtw_set_hal_ops(_adapter *padapter)
 	if (rtw_get_chip_type(padapter) == RTL8723F)
 		rtl8723fu_set_hal_ops(padapter);
 #endif /* CONFIG_RTL8723F */
+
+#ifdef CONFIG_RTL8822E
+	if (rtw_get_chip_type(padapter) == RTL8822E)
+		rtl8822eu_set_hal_ops(padapter);
+#endif /* CONFIG_RTL8822E */
 
 	if (_FAIL == rtw_hal_ops_check(padapter))
 		return _FAIL;
@@ -1119,6 +1140,7 @@ _adapter *rtw_usb_primary_adapter_init(struct dvobj_priv *dvobj,
 #else
 	padapter->hw_port = HW_PORT0;
 #endif
+	padapter->adapter_link.adapter = padapter;
 
 	/* step init_io_priv */
 	if (rtw_init_io_priv(padapter, usb_set_intf_ops) == _FAIL)
@@ -1436,6 +1458,15 @@ static int __init rtw_drv_entry(void)
 	RTW_PRINT(DRV_NAME" BT-Coex version = %s\n", BTCOEXVERSION);
 #endif /* BTCOEXVERSION */
 
+#if (defined(CONFIG_RTKM) && defined(CONFIG_RTKM_BUILT_IN))
+	ret = rtkm_prealloc_init();
+	if (ret) {
+		RTW_INFO("%s: pre-allocate memory failed!!(%d)\n", __FUNCTION__,
+			 ret);
+		goto exit;
+	}
+#endif /* CONFIG_RTKM */
+
 	ret = platform_wifi_power_on();
 	if (ret != 0) {
 		RTW_INFO("%s: power on failed!!(%d)\n", __FUNCTION__, ret);
@@ -1498,6 +1529,12 @@ static void __exit rtw_drv_halt(void)
 	RTW_PRINT("module exit success\n");
 
 	rtw_mstat_dump(RTW_DBGDUMP);
+
+#if (defined(CONFIG_RTKM) && defined(CONFIG_RTKM_BUILT_IN))
+	rtkm_prealloc_destroy();
+#elif (defined(CONFIG_RTKM) && defined(CONFIG_RTKM_STANDALONE))
+	rtkm_dump_mstatus(RTW_DBGDUMP);
+#endif /* CONFIG_RTKM */
 }
 
 module_init(rtw_drv_entry);

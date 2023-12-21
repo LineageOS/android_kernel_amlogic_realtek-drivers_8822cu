@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2019 Realtek Corporation.
+ * Copyright(c) 2007 - 2021 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -117,7 +117,7 @@ extern uint rtw_drv_log_level;
 
 #ifdef DBG_CPU_INFO
 #define CPU_INFO_FMT	"[%u] "
-#define CPU_INFO_ARG	get_cpu()
+#define CPU_INFO_ARG	task_cpu(current)
 #else /* !DBG_CPU_INFO */
 #define CPU_INFO_FMT	"%s"
 #define CPU_INFO_ARG	""
@@ -602,8 +602,14 @@ ssize_t proc_set_xmit_block(struct file *file, const char __user *buffer, size_t
 #endif
 
 #ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
-int proc_get_rtkm_info(struct seq_file *m, void *v);
+int proc_get_rtkm_skb(struct seq_file *m, void *v);
 #endif /* CONFIG_PREALLOC_RX_SKB_BUFFER */
+
+#ifdef CONFIG_RTKM
+int proc_get_rtkm_info(struct seq_file *m, void *v);
+ssize_t proc_set_rtkm_info(struct file *file, const char __user *buffer,
+			   size_t count, loff_t *pos, void *data);
+#endif /* CONFIG_RTKM */
 
 #ifdef CONFIG_IEEE80211W
 ssize_t proc_set_tx_sa_query(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);

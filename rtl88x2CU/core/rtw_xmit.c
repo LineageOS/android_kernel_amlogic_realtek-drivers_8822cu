@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2019 Realtek Corporation.
+ * Copyright(c) 2007 - 2021 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -573,7 +573,7 @@ void rtw_get_adapter_tx_rate_bmp(_adapter *adapter, u16 r_bmp_cck_ofdm[], u32 r_
 			bmp_vht |= tmp_vht;
 		}
 		if (bw == CHANNEL_WIDTH_20)
-			r_bmp_cck_ofdm[bw] = bmp_cck_ofdm;
+			r_bmp_cck_ofdm[0] = bmp_cck_ofdm;
 		if (bw <= CHANNEL_WIDTH_40)
 			r_bmp_ht[bw] = bmp_ht;
 		if (bw <= CHANNEL_WIDTH_160)
@@ -685,7 +685,7 @@ void rtw_update_tx_rate_bmp(struct dvobj_priv *dvobj)
 
 		/* TODO: per rfpath and rate section handling? */
 		if (update_ht_rs == _TRUE || update_vht_rs == _TRUE)
-			rtw_hal_update_txpwr_level(adapter);
+			rtw_update_txpwr_level(dvobj, HW_BAND_MAX);
 	}
 #endif /* CONFIG_TXPWR_LIMIT */
 }
@@ -848,18 +848,23 @@ s16 rtw_get_oper_txpwr_max_mbm(struct dvobj_priv *dvobj, bool eirp)
 	return mbm;
 }
 
-s16 rtw_rfctl_get_reg_max_txpwr_mbm(struct rf_ctl_t *rfctl, u8 ch, u8 bw, u8 offset, bool eirp)
+s16 rtw_rfctl_get_reg_max_txpwr_mbm(struct rf_ctl_t *rfctl, enum band_type band, u8 ch, u8 bw, u8 offset, bool eirp)
 {
 	struct dvobj_priv *dvobj = rfctl_to_dvobj(rfctl);
 	struct registry_priv *regsty = dvobj_to_regsty(dvobj);
 	_adapter *adapter = dvobj_get_primary_adapter(dvobj);
 	s16 mbm = -100 * MBM_PDBM;
-	u8 cch = rtw_get_center_ch(ch, bw, offset);
+	u8 cch = rtw_get_center_ch_by_band(band, ch, bw, offset);
 	u16 bmp_cck_ofdm = 0;
 	u32 bmp_ht = 0;
 	u64 bmp_vht = 0;
 
-	if (ch <= 14)
+#if CONFIG_IEEE80211_BAND_6GHZ
+	if (band == BAND_ON_6G) /* TODO: 6G */
+		return 1300;
+#endif
+
+	if (band == BAND_ON_2_4G)
 		bmp_cck_ofdm |= RATE_BMP_CCK;
 
 	/* TODO: NO OFDM? */
@@ -1605,7 +1610,7 @@ inline u8 rtw_get_hwseq_no(_adapter *padapter)
 
 #ifdef CONFIG_CONCURRENT_MODE
 	#if defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B) \
-	    || defined(CONFIG_RTL8723F)
+	    || defined(CONFIG_RTL8723F) || defined(CONFIG_RTL8822E)
 	hwseq_num = padapter->iface_id;
 	if (hwseq_num > 3)
 		hwseq_num = 3;
@@ -1644,7 +1649,6 @@ static u8 _rtw_lps_chk_packet_type(struct pkt_attrib *pattrib)
 #endif
 static s32 update_attrib(_adapter *padapter, _pkt *pkt, struct pkt_attrib *pattrib)
 {
-	uint i;
 	struct pkt_file pktfile;
 	struct sta_info *psta = NULL;
 	struct ethhdr etherhdr;
@@ -1663,7 +1667,7 @@ static s32 update_attrib(_adapter *padapter, _pkt *pkt, struct pkt_attrib *pattr
 	DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib);
 
 	_rtw_open_pktfile(pkt, &pktfile);
-	i = _rtw_pktfile_read(&pktfile, (u8 *)&etherhdr, ETH_HLEN);
+	_rtw_pktfile_read(&pktfile, (u8 *)&etherhdr, ETH_HLEN);
 
 	pattrib->ether_type = ntohs(etherhdr.h_proto);
 
@@ -1922,8 +1926,6 @@ get_sta_info:
 	rtw_set_tx_chksum_offload(pkt, pattrib);
 
 exit:
-
-
 	return res;
 }
 
@@ -4102,7 +4104,7 @@ void rtw_free_mgmt_xmitframe_queue(struct xmit_priv *pxmitpriv, _queue *mgmt_que
 		RTW_INFO("%s seq_num = %u\n", __func__, pxmitframe->attrib.seqnum);
 		#endif
 
-		rtw_free_xmitbuf_ext(pxmitpriv, pxmitframe->pxmitbuf);
+		rtw_free_xmitbuf(pxmitpriv, pxmitframe->pxmitbuf);
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 	}
 	_exit_critical_bh(&(mgmt_queue->lock), &irqL);
@@ -6611,6 +6613,7 @@ void rtw_sctx_init(struct submit_ctx *sctx, int timeout_ms)
 	init_completion(&sctx->done);
 #endif
 	sctx->status = RTW_SCTX_SUBMITTED;
+	sctx->rsp = NULL;
 }
 
 int rtw_sctx_wait(struct submit_ctx *sctx, const char *msg)

@@ -23,7 +23,7 @@
  *
  *****************************************************************************/
 
-/*Image2HeaderVersion: R3 1.5.12*/
+/*Image2HeaderVersion: R3 1.5.17*/
 #include "mp_precomp.h"
 #include "../phydm_precomp.h"
 
@@ -2044,7 +2044,7 @@ odm_read_and_config_mp_8822c_agc_tab(struct dm_struct *dm)
 			PHYDM_DBG(dm, ODM_COMP_INIT, "*else\n");
 			is_matched = false;
 			if (!find_target) {
-				PHYDM_DBG(dm, ODM_COMP_INIT, "Init Fail in Reg 0x%x\n", array[i]);
+				PHYDM_DBG(dm, ODM_COMP_INIT, "Init Fail in idx %d\n", i);
 				return;
 			}
 			break;
@@ -2081,7 +2081,7 @@ odm_read_and_config_mp_8822c_agc_tab(struct dm_struct *dm)
 u32
 odm_get_version_mp_8822c_agc_tab(void)
 {
-		return 62;
+		return 67;
 }
 
 /******************************************************************************
@@ -3591,7 +3591,7 @@ odm_read_and_config_mp_8822c_phy_reg(struct dm_struct *dm)
 			PHYDM_DBG(dm, ODM_COMP_INIT, "*else\n");
 			is_matched = false;
 			if (!find_target) {
-				PHYDM_DBG(dm, ODM_COMP_INIT, "Init Fail in Reg 0x%x\n", array[i]);
+				PHYDM_DBG(dm, ODM_COMP_INIT, "Init Fail in idx %d\n", i);
 				return;
 			}
 			break;
@@ -3628,7 +3628,7 @@ odm_read_and_config_mp_8822c_phy_reg(struct dm_struct *dm)
 u32
 odm_get_version_mp_8822c_phy_reg(void)
 {
-		return 62;
+		return 67;
 }
 
 /******************************************************************************

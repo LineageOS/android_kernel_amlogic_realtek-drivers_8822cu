@@ -521,6 +521,7 @@ struct sta_info {
 #endif
 
 #ifdef CONFIG_RTW_80211R
+	struct rtw_sta_ft_info_t ft_peer;
 	u8 ft_pairwise_key_installed;
 #endif
 

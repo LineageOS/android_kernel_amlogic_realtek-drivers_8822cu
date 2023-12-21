@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2021 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -291,6 +291,14 @@ u8 *rtw_set_ie_tpc_report(u8 *buf, u32 *buf_len, u8 tx_power, u8 link_margin)
 	ie_data[0] = tx_power;
 	ie_data[1] = link_margin;
 	return rtw_set_ie(buf, WLAN_EID_TPC_REPORT,  2, ie_data, buf_len);
+}
+
+void rtw_bss_ex_set_tpc_report(WLAN_BSSID_EX *bss, u8 tx_power, u8 link_margin)
+{
+	if (bss->IELength + 4 <= MAX_IE_SZ)
+		rtw_set_ie_tpc_report(bss->IEs + bss->IELength, &bss->IELength, tx_power, link_margin);
+	else
+		rtw_warn_on(1);
 }
 
 inline u8 *rtw_set_ie_ch_switch(u8 *buf, u32 *buf_len, u8 ch_switch_mode,
@@ -1065,10 +1073,15 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher,
 	}
 
 	if (gmcs) {
-		if (info.gmcs)
+		if (info.gmcs) {
 			*gmcs = rtw_get_rsn_cipher_suite(info.gmcs);
-		else
-			*gmcs = WPA_CIPHER_BIP_CMAC_128; /* default value when absent */
+		} else {
+			if (info.cap &&
+			    GET_RSN_CAP_MFP_OPTION(info.cap) > MFP_INVALID)
+				*gmcs = WPA_CIPHER_BIP_CMAC_128;
+			else
+				*gmcs = 0;
+		}
 	}
 
 	if (akm) {
@@ -1142,7 +1155,7 @@ int rtw_get_wapi_ie(u8 *in_ie, uint in_len, u8 *wapi_ie, u16 *wapi_len)
 
 int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie, u16 *wpa_len)
 {
-	u8 authmode, sec_idx;
+	u8 authmode;
 	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
 	uint	cnt;
 
@@ -1150,8 +1163,6 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 	/* Search required WPA or WPA2 IE and copy to sec_ie[ ] */
 
 	cnt = (_TIMESTAMP_ + _BEACON_ITERVAL_ + _CAPABILITY_);
-
-	sec_idx = 0;
 
 	while (cnt < in_len) {
 		authmode = in_ie[cnt];
@@ -1178,9 +1189,7 @@ int rtw_get_sec_ie(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len, u8 *wpa_ie,
 
 	}
 
-
 	return *rsn_len + *wpa_len;
-
 }
 
 u8 rtw_is_wps_ie(u8 *ie_ptr, uint *wps_ielen)
@@ -1234,7 +1243,7 @@ u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps
  *
  * Returns: The address of the WPS IE found, or NULL
  */
-u8 *rtw_get_wps_ie(const u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
+u8 *rtw_get_wps_ie(const u8 *in_ie, int in_len, u8 *wps_ie, uint *wps_ielen)
 {
 	uint cnt;
 	const u8 *wpsie_ptr = NULL;
@@ -1918,7 +1927,7 @@ extern char *rtw_initmac;
 void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr)
 {
 #define DEFAULT_RANDOM_MACADDR 1
-	u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN]= {0};
 
 	if (out == NULL) {
 		rtw_warn_on(1);
@@ -2103,7 +2112,8 @@ void dump_ies(void *sel, const u8 *buf, u32 buf_len)
  * @ht: check HT IEs
  * @vht: check VHT IEs, if true imply ht is true
  */
-void rtw_ies_get_chbw(u8 *ies, int ies_len, u8 *ch, u8 *bw, u8 *offset, u8 ht, u8 vht)
+#if CONFIG_ALLOW_FUNC_2G_5G_ONLY
+RTW_FUNC_2G_5G_ONLY void rtw_ies_get_chbw(u8 *ies, int ies_len, u8 *ch, u8 *bw, u8 *offset, u8 ht, u8 vht)
 {
 	u8 *p;
 	int	ie_len;
@@ -2167,6 +2177,7 @@ void rtw_ies_get_chbw(u8 *ies, int ies_len, u8 *ch, u8 *bw, u8 *offset, u8 ht, u
 	}
 #endif /* CONFIG_80211N_HT */
 }
+#endif
 
 void rtw_bss_get_chbw(WLAN_BSSID_EX *bss, u8 *ch, u8 *bw, u8 *offset, u8 ht, u8 vht)
 {
@@ -2181,95 +2192,6 @@ void rtw_bss_get_chbw(WLAN_BSSID_EX *bss, u8 *ch, u8 *bw, u8 *offset, u8 ht, u8 
 			 , *ch, bss->Configuration.DSConfig);
 		*ch = bss->Configuration.DSConfig;
 		rtw_warn_on(1);
-	}
-}
-
-/**
- * rtw_is_chbw_grouped - test if the two ch settings can be grouped together
- * @ch_a: ch of set a
- * @bw_a: bw of set a
- * @offset_a: offset of set a
- * @ch_b: ch of set b
- * @bw_b: bw of set b
- * @offset_b: offset of set b
- */
-bool rtw_is_chbw_grouped(u8 ch_a, u8 bw_a, u8 offset_a
-			 , u8 ch_b, u8 bw_b, u8 offset_b)
-{
-	bool is_grouped = _FALSE;
-
-	if (ch_a != ch_b) {
-		/* ch is different */
-		goto exit;
-	} else if ((bw_a == CHANNEL_WIDTH_40 || bw_a == CHANNEL_WIDTH_80)
-		   && (bw_b == CHANNEL_WIDTH_40 || bw_b == CHANNEL_WIDTH_80)
-		  ) {
-		if (offset_a != offset_b)
-			goto exit;
-	}
-
-	is_grouped = _TRUE;
-
-exit:
-	return is_grouped;
-}
-
-/**
- * rtw_sync_chbw - obey g_ch, adjust g_bw, g_offset, bw, offset
- * @req_ch: pointer of the request ch, may be modified further
- * @req_bw: pointer of the request bw, may be modified further
- * @req_offset: pointer of the request offset, may be modified further
- * @g_ch: pointer of the ongoing group ch
- * @g_bw: pointer of the ongoing group bw, may be modified further
- * @g_offset: pointer of the ongoing group offset, may be modified further
- */
-void rtw_sync_chbw(u8 *req_ch, u8 *req_bw, u8 *req_offset
-		   , u8 *g_ch, u8 *g_bw, u8 *g_offset)
-{
-
-	*req_ch = *g_ch;
-
-	if (*req_bw == CHANNEL_WIDTH_80 && *g_ch <= 14) {
-		/*2.4G ch, downgrade to 40Mhz */
-		*req_bw = CHANNEL_WIDTH_40;
-	}
-
-	switch (*req_bw) {
-	case CHANNEL_WIDTH_80:
-		if (*g_bw == CHANNEL_WIDTH_40 || *g_bw == CHANNEL_WIDTH_80)
-			*req_offset = *g_offset;
-		else if (*g_bw == CHANNEL_WIDTH_20)
-			rtw_get_offset_by_chbw(*req_ch, *req_bw, req_offset);
-
-		if (*req_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE) {
-			RTW_ERR("%s req 80MHz BW without offset, down to 20MHz\n", __func__);
-			rtw_warn_on(1);
-			*req_bw = CHANNEL_WIDTH_20;
-		}
-		break;
-	case CHANNEL_WIDTH_40:
-		if (*g_bw == CHANNEL_WIDTH_40 || *g_bw == CHANNEL_WIDTH_80)
-			*req_offset = *g_offset;
-		else if (*g_bw == CHANNEL_WIDTH_20)
-			rtw_get_offset_by_chbw(*req_ch, *req_bw, req_offset);
-
-		if (*req_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE) {
-			RTW_ERR("%s req 40MHz BW without offset, down to 20MHz\n", __func__);
-			rtw_warn_on(1);
-			*req_bw = CHANNEL_WIDTH_20;
-		}
-		break;
-	case CHANNEL_WIDTH_20:
-		*req_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-		break;
-	default:
-		RTW_ERR("%s req unsupported BW:%u\n", __func__, *req_bw);
-		rtw_warn_on(1);
-	}
-
-	if (*req_bw > *g_bw) {
-		*g_bw = *req_bw;
-		*g_offset = *req_offset;
 	}
 }
 

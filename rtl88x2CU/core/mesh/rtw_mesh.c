@@ -998,7 +998,7 @@ exit:
 */
 u8 rtw_mesh_select_operating_ch(_adapter *adapter)
 {
-	struct rf_ctl_t *rfctl = adapter_to_rfctl(adapter);
+	struct rtw_chset *chset = adapter_to_chset(adapter);
 	struct rtw_mesh_cfg *mcfg = &adapter->mesh_cfg;
 	struct mlme_priv *mlme = &adapter->mlmepriv;
 	_queue *queue = &(mlme->scanned_queue);
@@ -1036,11 +1036,11 @@ u8 rtw_mesh_select_operating_ch(_adapter *adapter)
 			&& rtw_mesh_cto_mgate_network_filter(adapter, scanned)
 			#endif
 		) {
-			int ch_set_idx = rtw_chset_search_ch(rfctl->channel_set, scanned->network.Configuration.DSConfig);
+			int ch_set_idx = rtw_chset_search_ch(chset, scanned->network.Configuration.DSConfig);
 
 			if (ch_set_idx >= 0
-				&& !(rfctl->channel_set[ch_set_idx].flags & RTW_CHF_NO_IR)
-				&& !CH_IS_NON_OCP(&rfctl->channel_set[ch_set_idx])
+				&& !(chset->chs[ch_set_idx].flags & RTW_CHF_NO_IR)
+				&& !CH_IS_NON_OCP(&chset->chs[ch_set_idx])
 			) {
 				u8 nop, accept;
 
@@ -1048,13 +1048,13 @@ u8 rtw_mesh_select_operating_ch(_adapter *adapter)
 				cand_cnt[ch_set_idx]++;
 				if (max_cand_cnt < cand_cnt[ch_set_idx]) {
 					max_cand_cnt = cand_cnt[ch_set_idx];
-					max_cand_ch = rfctl->channel_set[ch_set_idx].ChannelNum;
+					max_cand_ch = chset->chs[ch_set_idx].ChannelNum;
 				}
 				if (accept) {
 					cand_ap_cnt[ch_set_idx]++;
 					if (max_cand_ap_cnt < cand_ap_cnt[ch_set_idx]) {
 						max_cand_ap_cnt = cand_ap_cnt[ch_set_idx];
-						max_cand_ap_ch = rfctl->channel_set[ch_set_idx].ChannelNum;
+						max_cand_ap_ch = chset->chs[ch_set_idx].ChannelNum;
 					}
 				}
 			}

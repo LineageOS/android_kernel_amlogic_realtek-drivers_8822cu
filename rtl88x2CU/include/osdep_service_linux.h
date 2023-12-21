@@ -56,6 +56,10 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 
+#ifdef CONFIG_RTKM
+#include "rtw_mem.h"
+#endif /* CONFIG_RTKM */
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	#include <uapi/linux/sched/types.h>
 #endif
@@ -156,9 +160,8 @@
 /*
  * MLD related linux kernel patch in
  * Android Common Kernel android13-5.15(5.15.41)
- * Linux Kernel 5.19.2
  */
-#if (defined(IEEE80211_MLD_MAX_NUM_LINKS) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41)))
+#if (defined(CONFIG_RTW_ANDROID) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41)))
         #define CONFIG_MLD_KERNEL_PATCH
 #endif
 
@@ -302,27 +305,23 @@ __inline static void _exit_critical_ex(_lock *plock, _irqL *pirqL)
 	spin_unlock_irqrestore(plock, *pirqL);
 }
 
-__inline static void _enter_critical_bh(_lock *plock, _irqL *pirqL)
+__inline static void _rtw_spinlock_bh(_lock *plock)
 {
 	spin_lock_bh(plock);
 }
 
-__inline static void _exit_critical_bh(_lock *plock, _irqL *pirqL)
+__inline static void _rtw_spinunlock_bh(_lock *plock)
 {
 	spin_unlock_bh(plock);
 }
 
-__inline static void enter_critical_bh(_lock *plock)
-{
-	spin_lock_bh(plock);
-}
+#define enter_critical_bh(plock) _rtw_spinlock_bh(plock)
+#define exit_critical_bh(plock) _rtw_spinunlock_bh(plock)
 
-__inline static void exit_critical_bh(_lock *plock)
-{
-	spin_unlock_bh(plock);
-}
+#define _enter_critical_bh(plock, pirqL) _rtw_spinlock_bh(plock)
+#define _exit_critical_bh(plock, pirqL) _rtw_spinunlock_bh(plock)
 
-__inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
+__inline static int _rtw_mutex_lock_interruptible(_mutex *pmutex)
 {
 	int ret = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
@@ -334,8 +333,7 @@ __inline static int _enter_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 	return ret;
 }
 
-
-__inline static int _enter_critical_mutex_lock(_mutex *pmutex, _irqL *pirqL)
+__inline static int _rtw_mutex_lock(_mutex *pmutex)
 {
 	int ret = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
@@ -346,7 +344,7 @@ __inline static int _enter_critical_mutex_lock(_mutex *pmutex, _irqL *pirqL)
 	return ret;
 }
 
-__inline static void _exit_critical_mutex(_mutex *pmutex, _irqL *pirqL)
+__inline static void _rtw_mutex_unlock(_mutex *pmutex)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	mutex_unlock(pmutex);
@@ -355,18 +353,22 @@ __inline static void _exit_critical_mutex(_mutex *pmutex, _irqL *pirqL)
 #endif
 }
 
+#define _enter_critical_mutex(pmutex, pirqL) _rtw_mutex_lock_interruptible(pmutex)
+#define _enter_critical_mutex_lock(pmutex, pirqL) _rtw_mutex_lock(pmutex)
+#define _exit_critical_mutex(pmutex, pirqL) _rtw_mutex_unlock(pmutex)
+
 __inline static _list	*get_list_head(_queue	*queue)
 {
 	return &(queue->queue);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 static inline void timer_hdl(struct timer_list *in_timer)
 #else
 static inline void timer_hdl(unsigned long cntx)
 #endif
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 	_timer *ptimer = from_timer(ptimer, in_timer, timer);
 #else
 	_timer *ptimer = (_timer *)cntx;
@@ -379,7 +381,7 @@ __inline static void _init_timer(_timer *ptimer, _nic_hdl nic_hdl, void *pfunc, 
 	ptimer->function = pfunc;
 	ptimer->arg = cntx;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 	timer_setup(&ptimer->timer, timer_hdl, 0);
 #else
 	/* setup_timer(ptimer, pfunc,(u32)cntx);	 */
@@ -387,6 +389,11 @@ __inline static void _init_timer(_timer *ptimer, _nic_hdl nic_hdl, void *pfunc, 
 	ptimer->timer.data = (unsigned long)ptimer;
 	init_timer(&ptimer->timer);
 #endif
+}
+
+__inline static int _check_timer_is_active(_timer *ptimer)
+{
+	return timer_pending(&ptimer->timer);
 }
 
 __inline static void _set_timer(_timer *ptimer, u32 delay_time)
@@ -579,7 +586,26 @@ extern struct net_device *rtw_alloc_etherdev(int sizeof_priv);
 #define STRUCT_PACKED __attribute__ ((packed))
 
 #ifndef fallthrough
-#define fallthrough do {} while (0)
+#if __GNUC__ >= 5 || defined(__clang__)
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+#if __has_attribute(__fallthrough__)
+#define fallthrough __attribute__((__fallthrough__))
+#endif
+#endif
+#ifndef fallthrough
+#define fallthrough do {} while (0) /* fallthrough */
+#endif
+#endif
+
+#ifndef static_assert
+#define static_assert(expr, ...) __static_assert(expr, ##__VA_ARGS__, #expr)
+#define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+#define dev_addr_mod(dev, offset, addr, len) _rtw_memcpy(&dev->dev_addr[offset], addr, len)
 #endif
 
 #endif /* __OSDEP_LINUX_SERVICE_H_ */

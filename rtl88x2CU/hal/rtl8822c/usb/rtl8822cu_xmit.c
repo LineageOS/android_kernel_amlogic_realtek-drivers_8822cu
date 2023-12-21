@@ -895,6 +895,11 @@ s32	rtl8822cu_init_xmit_priv(PADAPTER padapter)
 
 void	rtl8822cu_free_xmit_priv(PADAPTER padapter)
 {
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+
+#ifdef PLATFORM_LINUX
+	tasklet_kill(&pxmitpriv->xmit_tasklet);
+#endif
 }
 
 static s32 xmitframe_direct(PADAPTER padapter, struct xmit_frame *pxmitframe)
@@ -989,6 +994,7 @@ s32 rtl8822cu_hal_mgmt_xmitframe_enqueue(PADAPTER padapter, struct xmit_frame *p
 
 	err = rtw_mgmt_xmitframe_enqueue(padapter, pxmitframe);
 	if (err != _SUCCESS) {
+		rtw_free_xmitbuf(pxmitpriv, pxmitframe->pxmitbuf);
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 		pxmitpriv->tx_drop++;
 	} else {

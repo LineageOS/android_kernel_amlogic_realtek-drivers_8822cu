@@ -122,7 +122,7 @@ int	usb_init_recv_priv(_adapter *padapter, u16 ini_in_buf_sz)
 
 		for (i = 0; i < NR_PREALLOC_RECV_SKB; i++) {
 #ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
-			pskb = rtw_alloc_skb_premem(MAX_RECVBUF_SZ);
+			pskb = rtkm_alloc_skb(MAX_RECVBUF_SZ);
 #else
 			pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
 #endif /* CONFIG_PREALLOC_RX_SKB_BUFFER */
@@ -159,6 +159,10 @@ void usb_free_recv_priv(_adapter *padapter, u16 ini_in_buf_sz)
 	struct recv_buf *precvbuf;
 	struct recv_priv	*precvpriv = &padapter->recvpriv;
 
+#ifdef PLATFORM_LINUX
+	tasklet_kill(&precvpriv->recv_tasklet);
+#endif
+
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 
 	for (i = 0; i < regsty->recvbuf_nr ; i++) {
@@ -194,8 +198,7 @@ void usb_free_recv_priv(_adapter *padapter, u16 ini_in_buf_sz)
 		struct sk_buff *skb;
 
 		while ((skb = skb_dequeue(&precvpriv->free_recv_skb_queue)) != NULL) {
-			if (rtw_free_skb_premem(skb) != 0)
-				rtw_skb_free(skb);
+			rtkm_kfree_skb_any(skb);
 		}
 	}
 #else
