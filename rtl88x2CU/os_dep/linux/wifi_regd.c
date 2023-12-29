@@ -15,6 +15,10 @@
 
 #include <drv_types.h>
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41) && defined (CONFIG_AMLOGIC_KERNEL_VERSION))
+#include <linux/upstream_version.h>
+#endif
+
 #ifdef CONFIG_IOCTL_CFG80211
 #if !RTW_PER_ADAPTER_WIPHY
 void rtw_chset_hook_os_channels(struct rtw_chset *chset, void *os_ref)
