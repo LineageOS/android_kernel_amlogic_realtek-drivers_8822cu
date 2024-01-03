@@ -463,6 +463,7 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 			while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
 				int i;
 				psta = LIST_CONTAINOR(plist, struct sta_info , hash_list);
+				_cancel_timer_ex(&psta->addba_retry_timer);
 				plist = get_next(plist);
 
 				for (i = 0; i < 16 ; i++) {
