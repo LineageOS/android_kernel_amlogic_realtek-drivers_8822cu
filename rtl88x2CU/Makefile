@@ -29,6 +29,7 @@ EXTRA_CFLAGS += -Wno-misleading-indentation
 EXTRA_CFLAGS += -Wno-parentheses-equality
 EXTRA_CFLAGS += -Wno-self-assign
 EXTRA_CFLAGS += -Wno-header-guard
+EXTRA_CFLAGS += -Wno-misleading-indentation
 endif
 
 GCC_VER_49 := $(shell echo `$(CC) -dumpversion | cut -f1-2 -d.` \>= 4.9 | bc )
