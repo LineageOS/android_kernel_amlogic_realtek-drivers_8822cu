@@ -899,7 +899,8 @@ void rtw_cfg80211_indicate_connect(_adapter *padapter)
 				scanned->network.Ssid.Ssid, MAC_ARG(scanned->network.MacAddress),
 				pnetwork->Ssid.Ssid, MAC_ARG(pnetwork->MacAddress)
 			);
-			rtw_warn_on(1);
+			if (pnetwork->Ssid.Ssid == NULL)
+				rtw_warn_on(1);
 		}
 	}
 

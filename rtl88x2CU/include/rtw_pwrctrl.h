@@ -49,6 +49,9 @@
 		#define DEFAULT_PATTERN_NUM 3
 	#endif
 
+#ifdef CONFIG_GOOGLE_CAST_WAKEUP
+	#define GOOGLE_CAST_PATTERN_NUM 3
+#endif
 #ifdef CONFIG_WOW_PATTERN_HW_CAM	/* Frame Mask Cam number for pattern match */
 #define MAX_WKFM_CAM_NUM	12
 #else
