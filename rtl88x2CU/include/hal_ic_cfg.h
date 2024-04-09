@@ -803,7 +803,7 @@
 	#endif /* DBG_RX_DFRAME_RAW_DATA */
 
 	#ifndef RTW_IQK_FW_OFFLOAD
-		/* #define RTW_IQK_FW_OFFLOAD */
+		/* #define RTW_IQK_FW_OFFLOAD */ /* need update FW */
 	#endif /* RTW_IQK_FW_OFFLOAD */
 	#define CONFIG_ADVANCE_OTA
 

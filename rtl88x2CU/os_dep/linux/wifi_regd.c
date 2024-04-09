@@ -145,6 +145,12 @@ exit:
 static void rtw_regd_schedule_dfs_chan_update(struct wiphy *wiphy)
 {
 	struct rtw_wiphy_data *wiphy_data = rtw_wiphy_priv(wiphy);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2))
+    unsigned int link_id = 0; /*TBD*/
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0))
+    u16 punct_bitmap = 0; /*TBD*/
+    #endif
+#endif
 
 	if (!wiphy_data->du_wdev) {
 		wiphy_data->du_wdev = rtw_regd_alloc_du_wdev(wiphy);
@@ -1059,7 +1065,7 @@ static void rtw_cfg80211_cac_event(struct rf_ctl_t *rfctl, u8 band_idx
 			continue;
 		if (!iface->rtw_wdev)
 			continue;
-#if defined(CONFIG_MLD_KERNEL_PATCH) || (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)) || defined(CONFIG_MLD_KERNEL_PATCH)
 		async = !((iface->rtw_wdev)->links[0].ap.chandef.chan);
 #else
 		async = !iface->rtw_wdev->chandef.chan;
@@ -1290,7 +1296,7 @@ int rtw_regd_init(struct wiphy *wiphy)
 	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 39))
 	wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
 #endif
 

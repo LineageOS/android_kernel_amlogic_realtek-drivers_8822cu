@@ -125,15 +125,7 @@ const enum band_type _nl80211_band_to_rtw_band[] = {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 	[NL80211_BAND_60GHZ]	= BAND_MAX,
 #endif
-#ifdef CONFIG_RTW_ANDROID
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))
-	#if CONFIG_IEEE80211_BAND_6GHZ
-	[NL80211_BAND_6GHZ]	= BAND_ON_6G,
-	#else
-	[NL80211_BAND_6GHZ]	= BAND_MAX,
-	#endif
-#endif
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 	#if CONFIG_IEEE80211_BAND_6GHZ
 	[NL80211_BAND_6GHZ]	= BAND_ON_6G,
 	#else
@@ -143,12 +135,8 @@ const enum band_type _nl80211_band_to_rtw_band[] = {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
 	[NL80211_BAND_S1GHZ]	= BAND_MAX,	/* around 900MHz, supported by S1G PHYs */
 #endif
-#ifdef CONFIG_RTW_ANDROID
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	[NL80211_BAND_LC]	= BAND_MAX,	/* light communication band (placeholder) */
-#endif
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0))
-	[NL80211_BAND_LC]	= BAND_MAX,
 #endif
 };
 static_assert(ARRAY_SIZE(_nl80211_band_to_rtw_band) >= NUM_NL80211_BANDS);
