@@ -7095,8 +7095,8 @@ void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rf
 	/* rframe, in this case is null point */
 
 #if (KERNEL_VERSION(4, 17, 0) <= LINUX_VERSION_CODE) \
-    || defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH)
-	struct rtw_external_auth_params params;
+	|| defined(CONFIG_KERNEL_PATCH_EXTERNAL_AUTH)
+	struct cfg80211_external_auth_params params = {0};
 	struct net_device *netdev = wdev_to_ndev(wdev);
 
 	params.action = EXTERNAL_AUTH_START;
@@ -7107,8 +7107,7 @@ void rtw_cfg80211_external_auth_request(_adapter *padapter, union recv_frame *rf
 	params.key_mgmt_suite = 0x8ac0f00;
 
 	RTW_INFO("external auth: use kernel API: cfg80211_external_auth_request()\n");
-	cfg80211_external_auth_request(netdev,
-		(struct cfg80211_external_auth_params *)&params, GFP_ATOMIC);
+	cfg80211_external_auth_request(netdev, &params, GFP_ATOMIC);
 #elif (KERNEL_VERSION(2, 6, 37) <= LINUX_VERSION_CODE)
 	u8 frame[256] = { 0 };
 	uint frame_len = 24;

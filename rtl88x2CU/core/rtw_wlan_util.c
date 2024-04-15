@@ -4815,9 +4815,10 @@ void rtw_wow_pattern_sw_reset(_adapter *adapter)
 #define rtw_user_wow_patten_elem(len, array, args...)	\
 	{.conts_len = len,  .pconts = (u8[len]){array, ##args}}
 
-void rtw_set_google_cast_mdns_wow_pattern(_adapter *padapter, u8 index)
+void rtw_set_google_cast_mdns_wow_pattern(_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
+	u8 index = 0;
 	u8 eth_dest_mac[ETH_ALEN] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0xfb};
 	u8 eth_src_mac[ETH_ALEN] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 	u8 eth_protocol[2] = {0x08, 0x00};
@@ -4859,12 +4860,23 @@ void rtw_set_google_cast_mdns_wow_pattern(_adapter *padapter, u8 index)
 				0x3f, 0x70, 0x80, 0x00, 0x30, 0x30, 0xc0, 0xff, 0xff, 0xff, 0xff, 0x0f),
 	};
 
-	if (index >= MAX_WKFM_CAM_NUM)
-		return;
+	if (pwrpriv->default_patterns_en == _TRUE) {
+		index = DEFAULT_PATTERN_NUM;
+	}
 
-	for (i = 0 ; i < GOOGLE_CAST_PATTERN_NUM ; i++){
+	for (i = 0; i < GOOGLE_CAST_PATTERN_NUM; i++) {
+		if (index >= MAX_WKFM_CAM_NUM)
+			return;
+
 		if (conts[i].conts_len >= MAX_WKFM_PATTERN_SIZE)
 			continue;
+
+		/* reset pattern */
+		_rtw_memset(pwrpriv->patterns[index].content, 0,
+			sizeof(pwrpriv->patterns[index].content));
+		_rtw_memset(pwrpriv->patterns[index].mask, 0,
+			sizeof(pwrpriv->patterns[index].mask));
+		pwrpriv->patterns[index].len = 0;
 
 		ptr = pwrpriv->patterns[index].content;
 		if (!is_zero_mac_addr(eth_dest_mac))
@@ -4925,7 +4937,7 @@ void rtw_set_google_cast_mdns_wow_pattern(_adapter *padapter, u8 index)
 
 		_rtw_memcpy(pwrpriv->patterns[index].mask, masks[i].pconts, masks[i].conts_len);
 
-		index--;
+		index++;
 	}
 }
 #endif
@@ -4948,21 +4960,20 @@ u8 rtw_set_default_pattern(_adapter *adapter)
 
 	u8 *target = NULL;
 
-	if (pwrpriv->wowlan_pattern_idx == 0)
+	if (pwrpriv->default_patterns_en == _FALSE)
+#ifdef CONFIG_GOOGLE_CAST_WAKEUP
+		goto set_google_cast_pattern;
+#else
 		return 0;
+#endif
 
-	for (index = 0 ; index < pwrpriv->wowlan_pattern_idx ; index++) {
+	for (index = 0 ; index < DEFAULT_PATTERN_NUM; index++) {
 		_rtw_memset(pwrpriv->patterns[index].content, 0,
 			    sizeof(pwrpriv->patterns[index].content));
 		_rtw_memset(pwrpriv->patterns[index].mask, 0,
 			    sizeof(pwrpriv->patterns[index].mask));
 		pwrpriv->patterns[index].len = 0;
 	}
-
-#ifdef CONFIG_GOOGLE_CAST_WAKEUP
-	if (pwrpriv->default_patterns_en == _FALSE)
-		goto set_google_cast_pattern;
-#endif
 
 	/*TCP/ICMP unicast*/
 	for (index = 0 ; index < DEFAULT_PATTERN_NUM ; index++) {
@@ -5067,7 +5078,7 @@ u8 rtw_set_default_pattern(_adapter *adapter)
 
 #ifdef CONFIG_GOOGLE_CAST_WAKEUP
 set_google_cast_pattern:
-	rtw_set_google_cast_mdns_wow_pattern(adapter, pwrpriv->wowlan_pattern_idx-1);
+	rtw_set_google_cast_mdns_wow_pattern(adapter);
 	index = pwrpriv->wowlan_pattern_idx;
 #endif
 	return index;
